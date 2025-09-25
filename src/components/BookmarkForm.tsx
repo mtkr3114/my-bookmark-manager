@@ -3,13 +3,20 @@
 import { useState, useEffect } from "react"
 import { fetchOgp } from "@/lib/fetchOgp"
 import { addBookmark } from "@/app/bookmarks/actions"
+import { TagSelector } from "./TagSelector"
+import type { Tag } from "@/lib/schemas/bookmark"
 
-export function BookmarkForm() {
+type BookmarkFormProps = {
+  availableTags: Tag[]
+}
+
+export function BookmarkForm({ availableTags }: BookmarkFormProps) {
   const [url, setUrl] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [image, setImage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
 
   // URL入力が止まってから 800ms 後に OGP を取得
   useEffect(() => {
@@ -35,7 +42,13 @@ export function BookmarkForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await addBookmark({ url, title, description, og_image_url: image })
+      await addBookmark({
+        url,
+        title,
+        description,
+        og_image_url: image,
+        tagIds: selectedTagIds, // 👈 タグも送る
+      })
       window.location.href = "/bookmarks"
     } catch (err) {
       console.error("登録失敗:", err)
@@ -44,7 +57,7 @@ export function BookmarkForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* URL入力 */}
+      {/* URL */}
       <input
         type="url"
         value={url}
@@ -82,6 +95,13 @@ export function BookmarkForm() {
         onChange={(e) => setDescription(e.target.value)}
         placeholder="説明"
         className="border w-full p-2 rounded"
+      />
+
+      {/* タグ */}
+      <TagSelector
+        availableTags={availableTags}
+        selectedTagIds={selectedTagIds}
+        onChange={setSelectedTagIds}
       />
 
       <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">

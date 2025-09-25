@@ -1,15 +1,7 @@
 "use client"
 
 import Link from "next/link"
-
-type Bookmark = {
-  id: string
-  url: string
-  title: string
-  description: string
-  og_image_url?: string | null
-  updated_at?: string
-}
+import type { Bookmark } from "@/lib/schemas/bookmark"
 
 export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
   return (
@@ -25,13 +17,28 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
 
       {/* 内容 */}
       <div className="p-3 flex-1">
-        <h3 className="font-semibold text-lg line-clamp-2">{bookmark.title || "タイトル未設定"}</h3>
-        <p className="text-sm text-gray-600 line-clamp-3">{bookmark.description || ""}</p>
+        <h3 className="font-semibold text-lg line-clamp-2">{bookmark.title ?? "タイトル未設定"}</h3>
+        <p className="text-sm text-gray-600 line-clamp-3">{bookmark.description ?? ""}</p>
         <p className="mt-2 text-xs text-blue-600 truncate">{bookmark.url}</p>
         {bookmark.updated_at && (
           <p className="mt-1 text-xs text-gray-400">
             更新日: {new Date(bookmark.updated_at).toLocaleString()}
           </p>
+        )}
+
+        {/* タグ一覧 */}
+        {bookmark.bookmark_tags && bookmark.bookmark_tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {bookmark.bookmark_tags.map((bt) => (
+              <span
+                key={bt.tags.id}
+                className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700"
+                style={{ backgroundColor: bt.tags.color ?? undefined }}
+              >
+                {bt.tags.name}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 

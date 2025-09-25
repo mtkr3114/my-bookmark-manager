@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { BookmarkCard } from "@/components/BookmarkCard"
 import Link from "next/link"
+import { BookmarkSchema, type Bookmark } from "@/lib/schemas/bookmark"
 
 export default async function BookmarksPage() {
   const supabase = await createClient()
@@ -12,9 +13,32 @@ export default async function BookmarksPage() {
 
   if (!user) redirect("/login")
 
+  // ✅ BookmarkSchema に合わせて必要なカラムを全取得
   const { data: bookmarks, error } = await supabase
     .from("bookmarks")
-    .select("id, url, title, description, og_image_url, updated_at, deleted_at")
+    .select(
+      `
+      id,
+      url,
+      title,
+      description,
+      og_image_url,
+      is_favorite,
+      created_at,
+      updated_at,
+      folders (
+        id,
+        name
+      ),
+      bookmark_tags (
+        tags (
+          id,
+          name,
+          color
+        )
+      )
+    `
+    )
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
@@ -23,6 +47,9 @@ export default async function BookmarksPage() {
     console.error("ブックマーク取得エラー:", error)
     return <p className="p-4">読み込みエラーが発生しました。</p>
   }
+
+  // ✅ Zod でバリデーション
+  const parsedBookmarks: Bookmark[] = (bookmarks ?? []).map((bm) => BookmarkSchema.parse(bm))
 
   return (
     <div className="p-4">
@@ -36,7 +63,7 @@ export default async function BookmarksPage() {
         </Link>
       </div>
 
-      {!bookmarks || bookmarks.length === 0 ? (
+      {parsedBookmarks.length === 0 ? (
         <div className="text-gray-600">
           まだブックマークがありません。{" "}
           <Link href="/bookmarks/new" className="text-blue-600 underline">
@@ -45,7 +72,7 @@ export default async function BookmarksPage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {bookmarks!.map((bm) => (
+          {parsedBookmarks.map((bm) => (
             <BookmarkCard key={bm.id} bookmark={bm} />
           ))}
         </div>

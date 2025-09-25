@@ -16,6 +16,7 @@ export const BookmarkSchema = z.object({
   url: z.string().url(),
   title: z.string().nullable(),
   description: z.string().nullable(),
+  og_image_url: z.string().nullable().optional(), // 👈 追加
   is_favorite: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),

@@ -2,19 +2,32 @@
 
 import { useState } from "react"
 import { updateBookmark, deleteBookmark } from "@/app/bookmarks/actions"
+import { TagSelector } from "./TagSelector"
+import type { Tag } from "@/lib/schemas/bookmark"
 
 type Bookmark = {
-  id: string
+  id: number
   url: string
-  title: string
-  description: string
+  title: string | null // DB定義に合わせる
+  description: string | null // DB定義に合わせる
   og_image_url?: string | null
+  bookmark_tags?: { tags: Tag }[]
 }
 
-export function EditBookmarkForm({ bookmark }: { bookmark: Bookmark }) {
+export function EditBookmarkForm({
+  bookmark,
+  availableTags,
+}: {
+  bookmark: Bookmark
+  availableTags: Tag[]
+}) {
+  // null を空文字に変換して useState に入れる
   const [url, setUrl] = useState(bookmark.url)
-  const [title, setTitle] = useState(bookmark.title)
-  const [description, setDescription] = useState(bookmark.description)
+  const [title, setTitle] = useState(bookmark.title ?? "")
+  const [description, setDescription] = useState(bookmark.description ?? "")
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
+    bookmark.bookmark_tags?.map((bt) => bt.tags.id) ?? []
+  )
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,6 +38,7 @@ export function EditBookmarkForm({ bookmark }: { bookmark: Bookmark }) {
         title,
         description,
         og_image_url: bookmark.og_image_url ?? undefined,
+        tagIds: selectedTagIds,
       })
       window.location.href = "/bookmarks"
     } catch (err) {
@@ -59,6 +73,7 @@ export function EditBookmarkForm({ bookmark }: { bookmark: Bookmark }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="border w-full p-2 rounded"
+        placeholder="タイトル"
       />
 
       {/* 説明 */}
@@ -66,6 +81,14 @@ export function EditBookmarkForm({ bookmark }: { bookmark: Bookmark }) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         className="border w-full p-2 rounded"
+        placeholder="説明"
+      />
+
+      {/* タグ */}
+      <TagSelector
+        availableTags={availableTags}
+        selectedTagIds={selectedTagIds}
+        onChange={setSelectedTagIds}
       />
 
       <div className="flex space-x-2">
