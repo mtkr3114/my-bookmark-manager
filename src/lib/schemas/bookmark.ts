@@ -14,9 +14,9 @@ export const FolderSchema = z.object({
 export const BookmarkSchema = z.object({
   id: z.number(),
   url: z.string().url(),
-  title: z.string().nullable(),
-  description: z.string().nullable(),
-  og_image_url: z.string().nullable().optional(), // 👈 追加
+  title: z.string().nullable(),             // null 許可
+  description: z.string().nullable(),       // null 許可
+  og_image_url: z.string().nullable().optional(), // 追加済み
   is_favorite: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -24,7 +24,7 @@ export const BookmarkSchema = z.object({
   bookmark_tags: z
     .array(
       z.object({
-        tags: TagSchema,
+        tags: TagSchema.nullable(),         // ← null 許可に修正
       })
     )
     .optional(),

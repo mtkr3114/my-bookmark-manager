@@ -29,15 +29,18 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
         {/* タグ一覧 */}
         {bookmark.bookmark_tags && bookmark.bookmark_tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {bookmark.bookmark_tags.map((bt) => (
-              <span
-                key={bt.tags.id}
-                className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700"
-                style={{ backgroundColor: bt.tags.color ?? undefined }}
-              >
-                {bt.tags.name}
-              </span>
-            ))}
+            {bookmark.bookmark_tags.map((bt) =>
+              bt.tags ? ( // 👈 null チェックを追加
+                <Link
+                  key={bt.tags.id}
+                  href={`/bookmarks?tag=${bt.tags.id}`}
+                  className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  style={{ backgroundColor: bt.tags.color ?? undefined }}
+                >
+                  {bt.tags.name}
+                </Link>
+              ) : null
+            )}
           </div>
         )}
       </div>

@@ -3,16 +3,7 @@
 import { useState } from "react"
 import { updateBookmark, deleteBookmark } from "@/app/bookmarks/actions"
 import { TagSelector } from "./TagSelector"
-import type { Tag } from "@/lib/schemas/bookmark"
-
-type Bookmark = {
-  id: number
-  url: string
-  title: string | null // DB定義に合わせる
-  description: string | null // DB定義に合わせる
-  og_image_url?: string | null
-  bookmark_tags?: { tags: Tag }[]
-}
+import type { Tag, Bookmark } from "@/lib/schemas/bookmark"
 
 export function EditBookmarkForm({
   bookmark,
@@ -26,7 +17,9 @@ export function EditBookmarkForm({
   const [title, setTitle] = useState(bookmark.title ?? "")
   const [description, setDescription] = useState(bookmark.description ?? "")
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
-    bookmark.bookmark_tags?.map((bt) => bt.tags.id) ?? []
+    bookmark.bookmark_tags
+      ?.map((bt) => bt.tags?.id) // 👈 null ガード追加
+      .filter((id): id is number => id !== undefined) ?? []
   )
 
   const handleUpdate = async (e: React.FormEvent) => {
