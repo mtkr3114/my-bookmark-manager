@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { BookmarkCard } from "@/components/BookmarkCard"
+import { TagFilterBar } from "@/components/TagFilterBar"
 import Link from "next/link"
-import { BookmarkSchema, type Bookmark, type Tag } from "@/lib/schemas/bookmark"
-
-export default async function BookmarksPage(props: { searchParams: Promise<{ tag?: string }> }) {
-  const { tag } = await props.searchParams
-  const tagFilter = tag ? Number(tag) : null
+import { BookmarkSchema, type Bookmark } from "@/lib/schemas/bookmark"
+export default async function BookmarksPage(props: { searchParams: Promise<{ tags?: string }> }) {
+  const { tags } = await props.searchParams
+  const tagFilters = tags ? tags.split(",").map((id) => Number(id)) : []
 
   const supabase = await createClient()
   const {
@@ -16,102 +16,60 @@ export default async function BookmarksPage(props: { searchParams: Promise<{ tag
   if (!user) redirect("/login")
 
   // タグ一覧を取得
-  const { data: tags } = await supabase
+  const { data: allTags } = await supabase
     .from("tags")
     .select("id, name, color")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
 
-  // タグフィルタ用の bookmark_id を取得
+  // フィルタ対象の bookmark_id を取得
   let bookmarkIds: number[] = []
-  if (tagFilter) {
-    const { data: ids } = await supabase
-      .from("bookmark_tags")
-      .select("bookmark_id")
-      .eq("tag_id", tagFilter)
+  if (tagFilters.length > 0) {
+    const { data: ids } = await supabase.from("bookmark_tags").select("bookmark_id, tag_id")
 
-    bookmarkIds = ids?.map((row) => row.bookmark_id) ?? []
+    if (ids) {
+      // bookmark_id ごとに tag_id を集める
+      const grouped = ids.reduce<Record<number, number[]>>((acc, row) => {
+        acc[row.bookmark_id] = acc[row.bookmark_id] || []
+        acc[row.bookmark_id].push(row.tag_id)
+        return acc
+      }, {})
+
+      // AND 条件: 選択した全てのタグを含む bookmark_id だけ残す
+      bookmarkIds = Object.keys(grouped)
+        .map(Number)
+        .filter((id) => tagFilters.every((t) => grouped[id].includes(t)))
+    }
   }
 
-  // ブックマークを取得
+  // ブックマーク取得
   let query = supabase
     .from("bookmarks")
     .select(
       `
-      id,
-      url,
-      title,
-      description,
-      og_image_url,
-      is_favorite,
-      created_at,
-      updated_at,
-      folders ( id, name ),
-      bookmark_tags ( tags ( id, name, color ) )
-    `
+    id,
+    url,
+    title,
+    description,
+    og_image_url,
+    is_favorite,
+    created_at,
+    updated_at,
+    folders ( id, name ),
+    bookmark_tags ( tags ( id, name, color ) )
+  `
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
 
-  if (tagFilter && bookmarkIds.length > 0) {
-    query = query.in("id", bookmarkIds)
-  } else if (tagFilter && bookmarkIds.length === 0) {
-    return (
-      <div className="p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">ブックマーク一覧</h1>
-          <div className="flex gap-2">
-            <Link
-              href="/tags"
-              className="px-3 py-1 rounded bg-gray-600 text-white hover:bg-gray-700"
-            >
-              タグ管理
-            </Link>
-            <Link
-              href="/bookmarks/new"
-              className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-            >
-              + 新規追加
-            </Link>
-          </div>
-        </div>
-
-        {/* タグ一覧 */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Link
-            href="/bookmarks"
-            className={`px-3 py-1 rounded text-sm ${
-              !tagFilter ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            すべて
-          </Link>
-          {tags?.map((t: Tag) => (
-            <Link
-              key={t.id}
-              href={`/bookmarks?tag=${t.id}`}
-              className={`px-3 py-1 rounded text-sm ${
-                tagFilter === t.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-              style={{
-                backgroundColor: tagFilter === t.id ? t.color ?? undefined : undefined,
-              }}
-            >
-              {t.name}
-            </Link>
-          ))}
-        </div>
-
-        <p className="text-gray-600">このタグに一致するブックマークはありません。</p>
-      </div>
-    )
+  // ✅ AND 条件の結果に基づいて絞り込み
+  if (tagFilters.length > 0) {
+    query = query.in("id", bookmarkIds.length > 0 ? bookmarkIds : [-1])
+    // -1 を指定して空配列にせずUIだけ残す
   }
 
   const { data: bookmarks, error } = await query
-
   if (error) {
     console.error("ブックマーク取得エラー:", error)
     return <p className="p-4">読み込みエラーが発生しました。</p>
@@ -136,36 +94,16 @@ export default async function BookmarksPage(props: { searchParams: Promise<{ tag
         </div>
       </div>
 
-      {/* タグ一覧 */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Link
-          href="/bookmarks"
-          className={`px-3 py-1 rounded text-sm ${
-            !tagFilter ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          すべて
-        </Link>
-        {tags?.map((t: Tag) => (
-          <Link
-            key={t.id}
-            href={`/bookmarks?tag=${t.id}`}
-            className={`px-3 py-1 rounded text-sm ${
-              tagFilter === t.id
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-            style={{
-              backgroundColor: tagFilter === t.id ? t.color ?? undefined : undefined,
-            }}
-          >
-            {t.name}
-          </Link>
-        ))}
-      </div>
+      {/* タグフィルタ UI */}
+      <TagFilterBar allTags={allTags ?? []} selectedTagIds={tagFilters} />
 
+      {/* ✅ ブックマークが0件でもタグUIは消さず、メッセージだけ */}
       {parsedBookmarks.length === 0 ? (
-        <div className="text-gray-600">まだブックマークがありません。</div>
+        <div className="text-gray-600">
+          {tagFilters.length > 0
+            ? "このタグの組み合わせに一致するブックマークはありません。"
+            : "まだブックマークがありません。"}
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {parsedBookmarks.map((bm) => (
